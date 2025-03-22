@@ -62,6 +62,24 @@ const mockUsers: User[] = [
     plan: 'premium',
     createdAt: new Date('2023-05-25'),
     lastLogin: new Date('2023-06-14')
+  },
+  {
+    id: '5',
+    name: 'Alex Rodriguez',
+    email: 'alex@example.com',
+    status: 'active',
+    plan: 'basic',
+    createdAt: new Date('2023-04-18'),
+    lastLogin: new Date('2023-06-15')
+  },
+  {
+    id: '6',
+    name: 'Emily Chen',
+    email: 'emily@example.com',
+    status: 'active',
+    plan: 'premium',
+    createdAt: new Date('2023-03-22'),
+    lastLogin: new Date('2023-06-13')
   }
 ];
 
@@ -87,22 +105,30 @@ const generateAnalyticsData = (): AnalyticsData => {
   return { views, users, revenue, retention, dates };
 };
 
+// Helper function to simulate network delay
+const simulateDelay = (ms: number = 500) => new Promise(resolve => setTimeout(resolve, ms));
+
 // Admin service functions
 export const adminService = {
   // Content Management
   getMovies: async (): Promise<Movie[]> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await simulateDelay(500);
     
     // Use our movies from the lib
-    return mockMovies;
+    return [...mockMovies];
   },
   
   addMovie: async (movie: Partial<Movie>): Promise<Movie> => {
-    await new Promise(resolve => setTimeout(resolve, 800));
+    await simulateDelay(800);
+    
+    // Validate required fields
+    if (!movie.title || !movie.thumbnailUrl) {
+      throw new Error("Missing required fields");
+    }
     
     const newMovie = {
       ...movie,
-      id: `${mockMovies.length + 1}`,
+      id: `${Date.now()}`, // Better unique ID
     } as Movie;
     
     mockMovies.push(newMovie);
@@ -116,7 +142,7 @@ export const adminService = {
   },
   
   updateMovie: async (id: string, updates: Partial<Movie>): Promise<Movie> => {
-    await new Promise(resolve => setTimeout(resolve, 600));
+    await simulateDelay(600);
     
     const index = mockMovies.findIndex(movie => movie.id === id);
     if (index === -1) throw new Error("Movie not found");
@@ -133,7 +159,7 @@ export const adminService = {
   },
   
   deleteMovie: async (id: string): Promise<void> => {
-    await new Promise(resolve => setTimeout(resolve, 700));
+    await simulateDelay(700);
     
     const index = mockMovies.findIndex(movie => movie.id === id);
     if (index === -1) throw new Error("Movie not found");
@@ -149,16 +175,27 @@ export const adminService = {
   
   // User Management
   getUsers: async (): Promise<User[]> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await simulateDelay(700);
     return [...mockUsers];
   },
   
   addUser: async (user: Omit<User, 'id' | 'createdAt'>): Promise<User> => {
-    await new Promise(resolve => setTimeout(resolve, 800));
+    await simulateDelay(800);
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(user.email)) {
+      throw new Error("Invalid email format");
+    }
+    
+    // Check for duplicate email
+    if (mockUsers.some(u => u.email === user.email)) {
+      throw new Error("Email already exists");
+    }
     
     const newUser = {
       ...user,
-      id: `${mockUsers.length + 1}`,
+      id: `${Date.now()}`, // Better unique ID
       createdAt: new Date(),
     } as User;
     
@@ -173,10 +210,17 @@ export const adminService = {
   },
   
   updateUser: async (id: string, updates: Partial<User>): Promise<User> => {
-    await new Promise(resolve => setTimeout(resolve, 600));
+    await simulateDelay(600);
     
     const index = mockUsers.findIndex(user => user.id === id);
     if (index === -1) throw new Error("User not found");
+    
+    // If email is being updated, check for duplicates
+    if (updates.email && updates.email !== mockUsers[index].email) {
+      if (mockUsers.some(u => u.email === updates.email)) {
+        throw new Error("Email already exists");
+      }
+    }
     
     const updatedUser = { ...mockUsers[index], ...updates };
     mockUsers[index] = updatedUser;
@@ -190,7 +234,7 @@ export const adminService = {
   },
   
   deleteUser: async (id: string): Promise<void> => {
-    await new Promise(resolve => setTimeout(resolve, 700));
+    await simulateDelay(700);
     
     const index = mockUsers.findIndex(user => user.id === id);
     if (index === -1) throw new Error("User not found");
@@ -206,13 +250,13 @@ export const adminService = {
   
   // Analytics
   getAnalytics: async (): Promise<AnalyticsData> => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await simulateDelay(1000);
     return generateAnalyticsData();
   },
   
   // Security
-  getSecurityLogs: async (): Promise<{ timestamp: Date, action: string, user: string, ip: string }[]> => {
-    await new Promise(resolve => setTimeout(resolve, 800));
+  getSecurityLogs: async (): Promise<{ timestamp: Date, action: string, user: string, ip: string, severity: 'low' | 'medium' | 'high' }[]> => {
+    await simulateDelay(800);
     
     // Generate mock security logs
     return Array.from({ length: 20 }, (_, i) => {
@@ -226,16 +270,21 @@ export const adminService = {
         "Admin panel accessed",
         "Content modified",
         "API key generated",
-        "User permissions changed"
+        "User permissions changed",
+        "Failed login attempt",
+        "Database backup",
+        "System update"
       ];
       
       const users = ["admin@netflix.com", "john@example.com", "jane@example.com", "mike@example.com"];
+      const severities: Array<'low' | 'medium' | 'high'> = ['low', 'medium', 'high'];
       
       return {
         timestamp: date,
         action: actions[Math.floor(Math.random() * actions.length)],
         user: users[Math.floor(Math.random() * users.length)],
-        ip: `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`
+        ip: `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
+        severity: severities[Math.floor(Math.random() * severities.length)]
       };
     });
   },
@@ -243,5 +292,6 @@ export const adminService = {
   // Initialize the service by importing movie data
   initialize: (movies: Movie[]) => {
     mockMovies = [...movies];
+    console.log(`Admin service initialized with ${mockMovies.length} movies and ${mockUsers.length} users`);
   }
 };

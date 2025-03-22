@@ -26,10 +26,13 @@ import {
   Users, 
   Ban, 
   CheckCircle,
-  Clock
+  Clock,
+  AlertCircle
 } from 'lucide-react';
 import { adminService, User } from '@/services/adminService';
 import { toast } from '@/components/ui/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Label } from '@/components/ui/label';
 
 // We've removed the duplicate User interface definition that was here
 
@@ -40,6 +43,7 @@ export const UserManagement = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<Partial<User>>({
     name: '',
     email: '',
@@ -107,6 +111,10 @@ export const UserManagement = () => {
     try {
       await adminService.deleteUser(id);
       loadUsers();
+      toast({
+        title: "User deleted",
+        description: "The user has been successfully removed.",
+      });
     } catch (error) {
       toast({
         title: "Error deleting user",
@@ -119,12 +127,21 @@ export const UserManagement = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    setIsSubmitting(true);
     try {
       if (isEditMode && selectedUser) {
         await adminService.updateUser(selectedUser.id, formData);
+        toast({
+          title: "User updated",
+          description: "The user information has been updated successfully."
+        });
       } else {
         // For new user, we need a complete user object
         await adminService.addUser(formData as Omit<User, 'id' | 'createdAt'>);
+        toast({
+          title: "User created",
+          description: "New user has been added successfully."
+        });
       }
       
       loadUsers();
@@ -135,6 +152,8 @@ export const UserManagement = () => {
         description: "Failed to save the user. Please try again.",
         variant: "destructive"
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -164,6 +183,40 @@ export const UserManagement = () => {
     });
   };
 
+  // Loading skeletons
+  const UserTableSkeleton = () => (
+    <div className="border border-white/10 rounded-lg overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[60px]">ID</TableHead>
+            <TableHead>Name</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="hidden md:table-cell">Plan</TableHead>
+            <TableHead className="hidden md:table-cell">Created</TableHead>
+            <TableHead className="hidden md:table-cell">Last Login</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {[...Array(5)].map((_, i) => (
+            <TableRow key={i}>
+              <TableCell><Skeleton className="h-4 w-8" /></TableCell>
+              <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+              <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+              <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+              <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-16" /></TableCell>
+              <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
+              <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
+              <TableCell className="text-right"><Skeleton className="h-8 w-16 ml-auto" /></TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -176,16 +229,14 @@ export const UserManagement = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <Button onClick={handleCreateNew}>
+        <Button onClick={handleCreateNew} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
           Add New User
         </Button>
       </div>
 
       {isLoading ? (
-        <div className="h-96 flex items-center justify-center">
-          <div className="animate-pulse text-primary">Loading users...</div>
-        </div>
+        <UserTableSkeleton />
       ) : (
         <>
           {filteredUsers.length === 0 ? (
@@ -193,6 +244,10 @@ export const UserManagement = () => {
               <Users className="h-16 w-16 mb-4 opacity-30" />
               <p className="text-lg">No users found</p>
               <p className="text-sm">Try adjusting your search or add new users</p>
+              <Button variant="outline" className="mt-4" onClick={handleCreateNew}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add New User
+              </Button>
             </div>
           ) : (
             <div className="border border-white/10 rounded-lg overflow-hidden">
@@ -211,7 +266,7 @@ export const UserManagement = () => {
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
+                    <TableRow key={user.id} className="hover:bg-white/5 transition-colors">
                       <TableCell className="font-medium">{user.id}</TableCell>
                       <TableCell>{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
@@ -223,10 +278,10 @@ export const UserManagement = () => {
                       <TableCell className="hidden md:table-cell">{formatDate(user.createdAt)}</TableCell>
                       <TableCell className="hidden md:table-cell">{formatDate(user.lastLogin)}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(user)}>
+                        <Button variant="ghost" size="icon" onClick={() => handleEdit(user)} title="Edit user">
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(user.id)}>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(user.id)} title="Delete user">
                           <Trash2 className="h-4 w-4 text-red-500" />
                         </Button>
                       </TableCell>
@@ -253,18 +308,20 @@ export const UserManagement = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-4">
               <div className="space-y-2">
-                <label htmlFor="name" className="block text-sm font-medium">Full Name</label>
+                <Label htmlFor="name">Full Name</Label>
                 <Input
                   id="name"
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
                   required
+                  disabled={isSubmitting}
+                  placeholder="John Doe"
                 />
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="email" className="block text-sm font-medium">Email</label>
+                <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
                   name="email"
@@ -272,11 +329,13 @@ export const UserManagement = () => {
                   value={formData.email}
                   onChange={handleChange}
                   required
+                  disabled={isSubmitting}
+                  placeholder="user@example.com"
                 />
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="status" className="block text-sm font-medium">Status</label>
+                <Label htmlFor="status">Status</Label>
                 <select
                   id="status"
                   name="status"
@@ -284,6 +343,7 @@ export const UserManagement = () => {
                   value={formData.status}
                   onChange={handleChange}
                   required
+                  disabled={isSubmitting}
                 >
                   <option value="active">Active</option>
                   <option value="suspended">Suspended</option>
@@ -292,7 +352,7 @@ export const UserManagement = () => {
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="plan" className="block text-sm font-medium">Subscription Plan</label>
+                <Label htmlFor="plan">Subscription Plan</Label>
                 <select
                   id="plan"
                   name="plan"
@@ -300,6 +360,7 @@ export const UserManagement = () => {
                   value={formData.plan}
                   onChange={handleChange}
                   required
+                  disabled={isSubmitting}
                 >
                   <option value="basic">Basic</option>
                   <option value="standard">Standard</option>
@@ -309,11 +370,11 @@ export const UserManagement = () => {
             </div>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSubmitting}>
                 Cancel
               </Button>
-              <Button type="submit">
-                {isEditMode ? 'Update User' : 'Add User'}
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Saving...' : isEditMode ? 'Update User' : 'Add User'}
               </Button>
             </DialogFooter>
           </form>
