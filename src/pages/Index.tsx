@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 import Navbar from '@/components/ui/navbar';
 import Hero from '@/components/ui/hero';
 import ContentCarousel from '@/components/ui/content-carousel';
+import Footer from '@/components/ui/footer';
 import { getFeaturedMovie, categories } from '@/lib/movies';
 
 const Index = () => {
@@ -32,6 +33,9 @@ const Index = () => {
           />
         ))}
       </div>
+
+      {/* Footer with Accordion */}
+      <Footer />
     </div>
   );
 };
