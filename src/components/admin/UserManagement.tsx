@@ -25,12 +25,13 @@ import {
   Search, 
   Users, 
   Ban, 
-  User, 
   CheckCircle,
   Clock
 } from 'lucide-react';
 import { adminService, User } from '@/services/adminService';
 import { toast } from '@/components/ui/use-toast';
+
+// We've removed the duplicate User interface definition that was here
 
 export const UserManagement = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -42,8 +43,8 @@ export const UserManagement = () => {
   const [formData, setFormData] = useState<Partial<User>>({
     name: '',
     email: '',
-    status: 'active',
-    plan: 'standard',
+    status: 'active' as const,
+    plan: 'standard' as const,
     lastLogin: new Date()
   });
 
@@ -79,8 +80,8 @@ export const UserManagement = () => {
     setFormData({
       name: '',
       email: '',
-      status: 'active',
-      plan: 'standard',
+      status: 'active' as const,
+      plan: 'standard' as const,
       lastLogin: new Date()
     });
     setIsEditMode(false);
