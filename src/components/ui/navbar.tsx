@@ -1,8 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useScrollPosition } from '@/hooks/use-scroll-position';
-import { Bell, Search, ChevronDown, User, FilmIcon, TvIcon, StarIcon, BookmarkIcon, ActivityIcon } from 'lucide-react';
+import { Bell, Search, ChevronDown, User, FilmIcon, TvIcon, StarIcon, BookmarkIcon, ActivityIcon, LogOut } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/use-toast';
+import { Badge } from '@/components/ui/badge';
 
 const Navbar: React.FC = () => {
   const { isScrolled } = useScrollPosition();
@@ -11,6 +15,8 @@ const Navbar: React.FC = () => {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { currentUser, logout } = useAdminAuth();
+  const { toast } = useToast();
   
   const navLinks = [
     { name: 'Home', path: '/', icon: ActivityIcon },
@@ -23,9 +29,27 @@ const Navbar: React.FC = () => {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchTerm.trim()) {
-      navigate(`/browse?search=${encodeURIComponent(searchTerm)}`);
+      navigate(`/search?q=${encodeURIComponent(searchTerm)}`);
       setIsSearchOpen(false);
       setSearchTerm('');
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+      toast({
+        title: "Logged out successfully",
+        description: "You have been logged out of your account",
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast({
+        title: "Logout failed",
+        description: "There was an error logging out. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -72,7 +96,7 @@ const Navbar: React.FC = () => {
             {isSearchOpen && (
               <input
                 type="text"
-                placeholder="Titles, people, genres..."
+                placeholder="Movies, TV, genres..."
                 className="w-full py-1 pl-8 pr-2 text-sm text-white bg-black/50 border border-white/20 rounded-sm focus:outline-none focus:border-white/40 placeholder:text-white/60"
                 autoFocus
                 value={searchTerm}
@@ -85,8 +109,11 @@ const Navbar: React.FC = () => {
             />
           </form>
           
-          <Link to="/notifications">
+          <Link to="/notifications" className="relative">
             <Bell className="w-5 h-5 text-white/80 hover:text-white cursor-pointer transition-colors" />
+            <Badge className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
+              3
+            </Badge>
           </Link>
           
           <div className="relative">
@@ -97,19 +124,58 @@ const Navbar: React.FC = () => {
                 setIsProfileMenuOpen(!isProfileMenuOpen);
               }}
             >
-              <div className="w-7 h-7 rounded bg-primary/80 flex items-center justify-center text-white">
-                <User className="w-4 h-4" />
-              </div>
+              {currentUser?.avatar ? (
+                <div className="w-7 h-7 rounded-full overflow-hidden">
+                  <img 
+                    src={currentUser.avatar} 
+                    alt={currentUser.username} 
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-primary/80 flex items-center justify-center text-white">
+                  <User className="w-4 h-4" />
+                </div>
+              )}
               <ChevronDown className={`w-4 h-4 text-white ml-1 transition-transform duration-300 ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
             </div>
             
             {isProfileMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-background/95 backdrop-blur-xl border border-white/10 rounded shadow-lg py-2 z-50 animate-fade-in">
-                <Link to="/profile" className="block px-4 py-2 text-sm text-white/80 hover:text-white hover:bg-white/10">Account</Link>
-                <Link to="/help" className="block px-4 py-2 text-sm text-white/80 hover:text-white hover:bg-white/10">Help Center</Link>
-                <Link to="/admin" className="block px-4 py-2 text-sm text-white/80 hover:text-white hover:bg-white/10">Admin Dashboard</Link>
+              <div className="absolute right-0 mt-2 w-56 bg-background/95 backdrop-blur-xl border border-white/10 rounded shadow-lg py-2 z-50 animate-fade-in">
+                {currentUser && (
+                  <>
+                    <div className="px-4 py-2 border-b border-white/10">
+                      <p className="font-medium text-sm">{currentUser.username}</p>
+                      <p className="text-xs text-white/60">{currentUser.email}</p>
+                    </div>
+                  </>
+                )}
+                
+                <Link to="/profile" className="block px-4 py-2 text-sm text-white/80 hover:text-white hover:bg-white/10">
+                  Account
+                </Link>
+                <Link to="/my-list" className="block px-4 py-2 text-sm text-white/80 hover:text-white hover:bg-white/10">
+                  My List
+                </Link>
+                <Link to="/help" className="block px-4 py-2 text-sm text-white/80 hover:text-white hover:bg-white/10">
+                  Help Center
+                </Link>
+                
+                {currentUser?.role === 'admin' && (
+                  <Link to="/admin" className="block px-4 py-2 text-sm text-white/80 hover:text-white hover:bg-white/10">
+                    Admin Dashboard
+                  </Link>
+                )}
+                
                 <div className="border-t border-white/10 my-1"></div>
-                <Link to="/logout" className="block px-4 py-2 text-sm text-white/80 hover:text-white hover:bg-white/10">Sign out</Link>
+                
+                <button 
+                  onClick={handleLogout}
+                  className="w-full text-left px-4 py-2 text-sm text-white/80 hover:text-white hover:bg-white/10 flex items-center"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign out
+                </button>
               </div>
             )}
           </div>

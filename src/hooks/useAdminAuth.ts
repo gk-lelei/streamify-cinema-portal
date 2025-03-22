@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { toast } from '@/components/ui/use-toast';
 
 // Admin user interface
@@ -41,25 +41,79 @@ const MOCK_ADMIN_USERS: AdminUser[] = [
     lastLogin: new Date(),
     permissions: ['read'],
     avatar: 'https://ui-avatars.com/api/?name=Viewer&background=random'
+  },
+  {
+    id: '4',
+    username: 'john.doe',
+    email: 'user@example.com',
+    role: 'viewer',
+    lastLogin: new Date(),
+    permissions: ['read'],
+    avatar: 'https://ui-avatars.com/api/?name=John+Doe&background=random'
   }
 ];
 
 export const useAdminAuth = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [sessionExpiry, setSessionExpiry] = useState<Date | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // Check if user has a specific permission
-  const hasPermission = (permission: string): boolean => {
+  const hasPermission = useCallback((permission: string): boolean => {
     if (!currentUser) return false;
     return currentUser.permissions.includes(permission);
+  }, [currentUser]);
+
+  // Register new user
+  const register = async (email: string, password: string, username: string): Promise<boolean> => {
+    setIsLoading(true);
+    setAuthError(null);
+    
+    // Simulate register API call
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        // Check if user already exists
+        const existingUser = MOCK_ADMIN_USERS.find(u => u.email.toLowerCase() === email.toLowerCase());
+        
+        if (existingUser) {
+          setAuthError('A user with this email already exists.');
+          setIsLoading(false);
+          resolve(false);
+          return;
+        }
+        
+        // Create new user (in a real app, this would add to database)
+        const newUser: AdminUser = {
+          id: Math.random().toString(36).substr(2, 9),
+          username,
+          email,
+          role: 'viewer',
+          lastLogin: new Date(),
+          permissions: ['read'],
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=random`
+        };
+        
+        // In a real app, we'd add this user to the database
+        // For this demo, we're just simulating success
+        
+        toast({
+          title: "Account created",
+          description: "Your account has been successfully created.",
+        });
+        
+        setIsLoading(false);
+        resolve(true);
+      }, 1500);
+    });
   };
 
   useEffect(() => {
     // Mock authentication check
     const checkAuth = () => {
       setIsLoading(true);
+      setAuthError(null);
       
       // Check for saved auth in localStorage (in a real app, you'd check JWT, etc.)
       const savedAuth = localStorage.getItem('adminAuth');
@@ -73,7 +127,7 @@ export const useAdminAuth = () => {
           if (foundUser) {
             user = {
               ...foundUser,
-              lastLogin: new Date()
+              lastLogin: new Date(parsedAuth.timestamp || new Date())
             };
           }
         } catch (error) {
@@ -83,24 +137,19 @@ export const useAdminAuth = () => {
       
       // Simulate API delay
       setTimeout(() => {
-        // For demo purposes, default to admin if no saved auth
-        if (!user) {
-          user = MOCK_ADMIN_USERS[0];
+        if (user) {
+          setCurrentUser(user);
+          setIsAuthenticated(true);
           
-          // Save to localStorage
-          localStorage.setItem('adminAuth', JSON.stringify({
-            userId: user.id,
-            timestamp: new Date().toISOString()
-          }));
+          // Set session expiry (4 hours from now)
+          const expiry = new Date();
+          expiry.setHours(expiry.getHours() + 4);
+          setSessionExpiry(expiry);
+        } else {
+          setCurrentUser(null);
+          setIsAuthenticated(false);
         }
         
-        // Set session expiry (4 hours from now)
-        const expiry = new Date();
-        expiry.setHours(expiry.getHours() + 4);
-        setSessionExpiry(expiry);
-        
-        setCurrentUser(user);
-        setIsAuthenticated(true);
         setIsLoading(false);
       }, 800);
     };
@@ -124,6 +173,7 @@ export const useAdminAuth = () => {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
+    setAuthError(null);
     
     // Simulate login API call
     return new Promise((resolve) => {
@@ -132,7 +182,7 @@ export const useAdminAuth = () => {
         const user = MOCK_ADMIN_USERS.find(u => u.email.toLowerCase() === email.toLowerCase());
         
         if (user && password) {
-          // Success - in a real app, you'd validate the password
+          // Success - in a real app, you'd validate the password with bcrypt or similar
           setCurrentUser(user);
           setIsAuthenticated(true);
           
@@ -157,6 +207,7 @@ export const useAdminAuth = () => {
           // Failed login
           setCurrentUser(null);
           setIsAuthenticated(false);
+          setAuthError('Invalid email or password. Please try again.');
           
           toast({
             title: "Login failed",
@@ -186,11 +237,6 @@ export const useAdminAuth = () => {
         // Clear localStorage
         localStorage.removeItem('adminAuth');
         
-        toast({
-          title: "Logged out successfully",
-          description: "You have been logged out of your account.",
-        });
-        
         setIsLoading(false);
         resolve();
       }, 500);
@@ -217,13 +263,46 @@ export const useAdminAuth = () => {
     }
   };
 
+  // Reset password functionality
+  const resetPassword = async (email: string): Promise<boolean> => {
+    setIsLoading(true);
+    setAuthError(null);
+    
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const user = MOCK_ADMIN_USERS.find(u => u.email.toLowerCase() === email.toLowerCase());
+        
+        if (user) {
+          toast({
+            title: "Password reset email sent",
+            description: "Check your email for instructions to reset your password.",
+          });
+          resolve(true);
+        } else {
+          setAuthError('No account found with this email address.');
+          toast({
+            title: "Password reset failed",
+            description: "No account found with this email address.",
+            variant: "destructive"
+          });
+          resolve(false);
+        }
+        
+        setIsLoading(false);
+      }, 1000);
+    });
+  };
+
   return {
     isAuthenticated,
     currentUser,
     isLoading,
     sessionExpiry,
+    authError,
     login,
     logout,
+    register,
+    resetPassword,
     hasPermission,
     switchRole
   };
