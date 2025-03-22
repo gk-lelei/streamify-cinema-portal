@@ -1,11 +1,36 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React, { useEffect } from 'react';
+import Navbar from '@/components/ui/navbar';
+import Hero from '@/components/ui/hero';
+import ContentCarousel from '@/components/ui/content-carousel';
+import { getFeaturedMovie, categories } from '@/lib/movies';
 
 const Index = () => {
+  // Get featured movie for the hero section
+  const featuredMovie = getFeaturedMovie();
+  
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
+    <div className="min-h-screen bg-netflix-black text-white">
+      <Navbar />
+      
+      {/* Hero Section */}
+      {featuredMovie && (
+        <Hero movie={featuredMovie} />
+      )}
+      
+      {/* Content Sections */}
+      <div className="relative z-10 -mt-16 pb-20">
+        {categories.map((category) => (
+          <ContentCarousel
+            key={category.id}
+            title={category.name}
+            movies={category.movies}
+          />
+        ))}
       </div>
     </div>
   );
